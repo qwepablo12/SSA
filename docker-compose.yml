@@ -1,0 +1,27 @@
+# Local development dependencies only.
+#
+# Phase 2 needs PostgreSQL and nothing else — Redis arrives with the bot (FSM
+# state and rate limiting), and there is no broker at all in the MVP (ADR-006).
+# The production compose file is a separate concern (04 §7) and is not this file.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ssa
+      POSTGRES_PASSWORD: change-me
+      POSTGRES_DB: ssa
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init-test-db.sql:/docker-entrypoint-initdb.d/10-init-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ssa -d ssa"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
