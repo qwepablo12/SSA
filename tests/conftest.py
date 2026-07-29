@@ -104,12 +104,17 @@ async def engine(test_db_settings: DatabaseSettings) -> AsyncIterator[AsyncEngin
 
 
 @pytest_asyncio.fixture
-async def session(engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
-    """A session bound to a transaction that is always rolled back.
+async def session_factory(
+    engine: AsyncEngine,
+) -> AsyncIterator[async_sessionmaker[AsyncSession]]:
+    """A sessionmaker bound to a transaction that is always rolled back.
 
-    The session joins an outer transaction on a dedicated connection, so
-    ``commit()`` inside the code under test commits to a savepoint rather than
-    to the database. Real commit semantics, zero persistence.
+    Every session it produces joins an outer transaction on one dedicated
+    connection, so ``commit()`` inside the code under test commits to a
+    savepoint rather than to the database. Real commit semantics, zero
+    persistence. Separated from :func:`session` so anything that needs the
+    factory itself — the Dishka container, which takes a sessionmaker rather
+    than a session — can share the same isolation.
     """
     async with engine.connect() as connection:
         transaction = await connection.begin()
@@ -119,9 +124,18 @@ async def session(engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
             autoflush=False,
             join_transaction_mode="create_savepoint",
         )
-        db_session = factory()
         try:
-            yield db_session
+            yield factory
         finally:
-            await db_session.close()
             await transaction.rollback()
+
+
+@pytest_asyncio.fixture
+async def session(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> AsyncIterator[AsyncSession]:
+    db_session = session_factory()
+    try:
+        yield db_session
+    finally:
+        await db_session.close()
