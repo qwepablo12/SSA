@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from ssa.domain.common.errors import ConflictError, ExternalServiceError
+from ssa.domain.common.errors import ExternalServiceError
+from ssa.infrastructure.database.errors import conflict_from_integrity_error
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -78,10 +79,7 @@ class SqlAlchemyUnitOfWork:
             await self.session.commit()
         except IntegrityError as err:
             await self.session.rollback()
-            raise ConflictError(
-                "Operation conflicts with existing data",
-                constraint=_constraint_name(err),
-            ) from err
+            raise conflict_from_integrity_error(err) from err
         except SQLAlchemyError as err:
             await self.session.rollback()
             raise ExternalServiceError("Database operation failed") from err
@@ -101,24 +99,4 @@ class SqlAlchemyUnitOfWork:
         try:
             await self.session.flush()
         except IntegrityError as err:
-            raise ConflictError(
-                "Operation conflicts with existing data",
-                constraint=_constraint_name(err),
-            ) from err
-
-
-def _constraint_name(err: IntegrityError) -> str | None:
-    """Best-effort extraction of the violated constraint name.
-
-    asyncpg exposes it on the underlying ``UniqueViolationError``, but
-    SQLAlchemy's asyncpg dialect wraps that in its own DBAPI exception before
-    it reaches ``err.orig`` — the attribute lives one level deeper, on
-    ``err.orig.__cause__``. Callers that need to distinguish *which* invariant
-    failed match on this — which is precisely why the naming convention in
-    ``base.py`` is not cosmetic.
-    """
-    original = getattr(err, "orig", None)
-    name = getattr(original, "constraint_name", None)
-    if name is not None:
-        return name
-    return getattr(getattr(original, "__cause__", None), "constraint_name", None)
+            raise conflict_from_integrity_error(err) from err

@@ -75,6 +75,11 @@ ignore = [
 # real imports. A TYPE_CHECKING-only import raises `MappedAnnotationError` at
 # import time, not just a type-checker complaint.
 "src/ssa/infrastructure/database/models/*.py" = ["TC001", "TC003"]
+# Pydantic resolves every field annotation at class-creation time to build its
+# validators, exactly like SQLAlchemy's declarative models above — a
+# TYPE_CHECKING-only import would be `None` in the module namespace when
+# Pydantic looks it up, not just a type-checker complaint.
+"src/ssa/application/*/dto.py" = ["TC001", "TC003"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["ssa"]
