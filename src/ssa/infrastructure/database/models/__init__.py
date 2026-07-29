@@ -9,4 +9,22 @@ Populated in Step 1 onward (06_Database_Schema.md §19).
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from ssa.infrastructure.database.models.tracking import (
+    ExerciseLog,
+    MoodLog,
+    SleepLog,
+    StudySession,
+    Subject,
+)
+from ssa.infrastructure.database.models.user import PrivacySettings, TelegramAccount, User
+
+__all__ = [
+    "ExerciseLog",
+    "MoodLog",
+    "PrivacySettings",
+    "SleepLog",
+    "StudySession",
+    "Subject",
+    "TelegramAccount",
+    "User",
+]
