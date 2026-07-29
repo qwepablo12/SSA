@@ -10,6 +10,7 @@ dependencies = [
     "pydantic>=2.9.0",
     "pydantic-settings>=2.6.0",
     "structlog>=24.4.0",
+    "dishka>=1.10.1",
 ]
 
 # Optional groups are NOT installed by default. The MVP image installs only the
@@ -80,6 +81,11 @@ ignore = [
 # TYPE_CHECKING-only import would be `None` in the module namespace when
 # Pydantic looks it up, not just a type-checker complaint.
 "src/ssa/application/*/dto.py" = ["TC001", "TC003"]
+# Dishka's `provide`/`from_context` inspect real annotations (via
+# `typing.get_type_hints`) to build the dependency graph at container-creation
+# time — same constraint as the SQLAlchemy models and Pydantic DTOs above.
+"src/ssa/infrastructure/di.py" = ["TC001", "TC003"]
+"src/ssa/application/*/di.py" = ["TC001", "TC003"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["ssa"]
