@@ -12,10 +12,13 @@ instance through dependency injection.
 
 from __future__ import annotations
 
+import os
+import types
 from enum import StrEnum
 from functools import cached_property
+from typing import Union, get_args, get_origin
 
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -93,6 +96,29 @@ class Settings(BaseSettings):
     db: DatabaseSettings = Field(default_factory=DatabaseSettings)
     test_db: DatabaseSettings | None = None
 
+    @model_validator(mode="after")
+    def _reject_unknown_env_vars(self) -> Settings:
+        """Catch a typo'd ``SSA_`` env var that ``extra="forbid"`` misses.
+
+        pydantic-settings' env source only ever reads keys that match a
+        declared field, so a variable that matches nothing is dropped before
+        validation ever sees it and ``extra="forbid"`` has nothing to trigger
+        on. This walks the field tree ourselves and checks ``os.environ``
+        directly instead.
+        """
+        prefix = (self.model_config.get("env_prefix") or "").upper()
+        delimiter = self.model_config.get("env_nested_delimiter") or "__"
+        known = _known_env_var_names(type(self), prefix, delimiter)
+        stray = sorted(
+            key for key in os.environ if key.upper().startswith(prefix) and key.upper() not in known
+        )
+        if stray:
+            raise ValueError(
+                "Extra inputs are not permitted: unknown environment "
+                f"variable(s) {', '.join(stray)}"
+            )
+        return self
+
     @classmethod
     def load(cls) -> Settings:
         """Read configuration from the environment.
@@ -101,3 +127,27 @@ class Settings(BaseSettings):
         malformed value, which is the intended behaviour: fail at boot.
         """
         return cls()
+
+
+def _nested_model_type(annotation: object) -> type[BaseModel] | None:
+    """The ``BaseModel`` a field's annotation names, unwrapping ``X | None``."""
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return annotation
+    if get_origin(annotation) in (Union, types.UnionType):
+        for arg in get_args(annotation):
+            if isinstance(arg, type) and issubclass(arg, BaseModel):
+                return arg
+    return None
+
+
+def _known_env_var_names(model: type[BaseModel], prefix: str, delimiter: str) -> set[str]:
+    """Every ``SSA_``-style env var name the field tree actually recognises."""
+    names: set[str] = set()
+    for field_name, field_info in model.model_fields.items():
+        env_name = f"{prefix}{field_name}".upper()
+        nested_model = _nested_model_type(field_info.annotation)
+        if nested_model is not None:
+            names |= _known_env_var_names(nested_model, f"{env_name}{delimiter}", delimiter)
+        else:
+            names.add(env_name)
+    return names

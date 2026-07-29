@@ -90,5 +90,5 @@ class TestSettings:
     def test_unknown_prefixed_variable_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A typo in an env var should fail at boot, not default silently."""
         monkeypatch.setenv("SSA_NOT_A_REAL_SETTING", "1")
-        with pytest.raises(Exception, match="extra_forbidden|Extra inputs"):
+        with pytest.raises(Exception, match=r"extra_forbidden|Extra inputs"):
             Settings(_env_file=None)  # type: ignore[call-arg]

@@ -8,10 +8,12 @@ event loop, and no mocking library (01_Architecture.md §3).
 
 from __future__ import annotations
 
-from datetime import date, datetime
-from types import TracebackType
-from typing import Protocol, runtime_checkable
-from zoneinfo import ZoneInfo
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from datetime import date, datetime
+    from types import TracebackType
+    from zoneinfo import ZoneInfo
 
 __all__ = ["Clock", "UnitOfWork"]
 

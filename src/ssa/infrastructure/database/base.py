@@ -20,7 +20,7 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 from decimal import Decimal
-from typing import Final
+from typing import Any, ClassVar, Final
 
 from sqlalchemy import BigInteger, Date, MetaData, Numeric, Text, Uuid
 from sqlalchemy.dialects.postgresql import TIMESTAMP
@@ -58,10 +58,9 @@ class Base(DeclarativeBase):
     # it, and length rules are expressed as CHECK constraints in this schema
     # where they can carry a name and be altered in one statement.
     #
-    # Deliberately left unannotated. ``type_annotation_map`` is a name the
-    # declarative machinery recognises; giving it a ``Mapped``-free annotation
-    # invites the class scanner to treat it as a column definition.
-    type_annotation_map = {
+    # ``ClassVar`` (rather than a ``Mapped``-free annotation) tells the
+    # declarative class scanner this is configuration, not a column definition.
+    type_annotation_map: ClassVar[dict[type, Any]] = {
         dt.datetime: TIMESTAMP(timezone=True),
         dt.date: Date,
         str: Text,

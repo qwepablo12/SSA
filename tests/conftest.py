@@ -13,14 +13,17 @@ Two rules this harness enforces:
 from __future__ import annotations
 
 import os
-from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from ssa.infrastructure.database.engine import create_database_engine, create_session_factory
+from ssa.infrastructure.database.engine import create_database_engine
 from ssa.shared.settings import DatabaseSettings, Settings
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 
 def _test_database_settings() -> DatabaseSettings:

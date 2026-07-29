@@ -11,16 +11,20 @@ and drop their own scratch tables, in ``finally`` blocks.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from ssa.domain.common.errors import ConflictError
 from ssa.infrastructure.database.engine import create_session_factory
 from ssa.infrastructure.database.uow import SqlAlchemyUnitOfWork
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 pytestmark = pytest.mark.integration
 

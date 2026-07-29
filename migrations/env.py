@@ -13,14 +13,17 @@ from __future__ import annotations
 
 import asyncio
 from logging.config import fileConfig
+from typing import TYPE_CHECKING
 
 from alembic import context
-from sqlalchemy import Connection
 
 from ssa.infrastructure.database import models  # noqa: F401  (populates metadata)
 from ssa.infrastructure.database.base import Base
 from ssa.infrastructure.database.engine import create_database_engine
 from ssa.shared.settings import Settings
+
+if TYPE_CHECKING:
+    from sqlalchemy import Connection
 
 config = context.config
 

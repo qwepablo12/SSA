@@ -7,6 +7,8 @@ performance bug that looks like a database problem.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -14,7 +16,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from ssa.shared.settings import DatabaseSettings
+if TYPE_CHECKING:
+    from ssa.shared.settings import DatabaseSettings
 
 __all__ = ["create_database_engine", "create_session_factory"]
 

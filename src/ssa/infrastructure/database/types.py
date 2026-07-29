@@ -66,6 +66,6 @@ SmallCount = Annotated[
     mapped_column(SmallInteger, nullable=False, server_default=text("0")),
 ]
 
-# 1.00–5.00 self-reported and averaged values. NUMERIC, not FLOAT: these are
+# 1.00-5.00 self-reported and averaged values. NUMERIC, not FLOAT: these are
 # compared and constrained, and binary floating point makes ``<= 5`` a lie.
 Score = Annotated[Decimal | None, mapped_column(Numeric(3, 2), nullable=True)]

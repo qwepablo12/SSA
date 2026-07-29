@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from types import TracebackType
+from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ssa.domain.common.errors import ConflictError, ExternalServiceError
+
+if TYPE_CHECKING:
+    from types import TracebackType
+
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 __all__ = ["SqlAlchemyUnitOfWork"]
 
@@ -106,9 +110,15 @@ class SqlAlchemyUnitOfWork:
 def _constraint_name(err: IntegrityError) -> str | None:
     """Best-effort extraction of the violated constraint name.
 
-    asyncpg exposes it on the wrapped exception. Callers that need to
-    distinguish *which* invariant failed match on this — which is precisely why
-    the naming convention in ``base.py`` is not cosmetic.
+    asyncpg exposes it on the underlying ``UniqueViolationError``, but
+    SQLAlchemy's asyncpg dialect wraps that in its own DBAPI exception before
+    it reaches ``err.orig`` — the attribute lives one level deeper, on
+    ``err.orig.__cause__``. Callers that need to distinguish *which* invariant
+    failed match on this — which is precisely why the naming convention in
+    ``base.py`` is not cosmetic.
     """
     original = getattr(err, "orig", None)
-    return getattr(original, "constraint_name", None)
+    name = getattr(original, "constraint_name", None)
+    if name is not None:
+        return name
+    return getattr(getattr(original, "__cause__", None), "constraint_name", None)
