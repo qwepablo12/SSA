@@ -14,6 +14,7 @@ from __future__ import annotations
 from dishka import Provider, Scope, provide
 
 from ssa.application.identity.use_cases.link_telegram_account import LinkTelegramAccount
+from ssa.application.identity.use_cases.onboard_user import OnboardUser
 from ssa.application.identity.use_cases.register_user import RegisterUser
 from ssa.application.identity.use_cases.update_privacy_settings import UpdatePrivacySettings
 from ssa.application.tracking.use_cases.create_subject import CreateSubject
@@ -53,6 +54,25 @@ class ApplicationProvider(Provider):
     ) -> LinkTelegramAccount:
         return LinkTelegramAccount(
             users=users, telegram_accounts=telegram_accounts, clock=clock, uow=uow
+        )
+
+    @provide(scope=Scope.REQUEST)
+    def get_onboard_user(
+        self,
+        users: UserRepository,
+        telegram_accounts: TelegramAccountRepository,
+        register_user: RegisterUser,
+        link_telegram_account: LinkTelegramAccount,
+        clock: Clock,
+        uow: UnitOfWork,
+    ) -> OnboardUser:
+        return OnboardUser(
+            users=users,
+            telegram_accounts=telegram_accounts,
+            register_user=register_user,
+            link_telegram_account=link_telegram_account,
+            clock=clock,
+            uow=uow,
         )
 
     @provide(scope=Scope.REQUEST)
