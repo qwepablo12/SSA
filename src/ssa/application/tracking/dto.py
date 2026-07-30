@@ -6,7 +6,14 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-__all__ = ["CreateSubjectRequest", "CreateSubjectResult"]
+__all__ = [
+    "CompleteStudySessionRequest",
+    "CompleteStudySessionResult",
+    "CreateSubjectRequest",
+    "CreateSubjectResult",
+    "StartStudySessionRequest",
+    "StartStudySessionResult",
+]
 
 
 class CreateSubjectRequest(BaseModel):
@@ -21,3 +28,29 @@ class CreateSubjectResult(BaseModel):
     name: str
     colour: str | None
     created_at: datetime
+
+
+class StartStudySessionRequest(BaseModel):
+    user_id: int
+    subject_name: str | None = None
+
+
+class StartStudySessionResult(BaseModel):
+    session_id: int
+    user_id: int
+    started_at: datetime
+    subject_id: int | None = None
+
+
+class CompleteStudySessionRequest(BaseModel):
+    user_id: int
+    focus_score: int | None = None
+
+
+class CompleteStudySessionResult(BaseModel):
+    session_id: int
+    user_id: int
+    started_at: datetime
+    ended_at: datetime
+    duration_minutes: int
+    focus_score: int | None

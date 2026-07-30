@@ -6,10 +6,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from ssa.domain.common.errors import NotFoundError
 from ssa.domain.tracking.enums import SessionStatus
 from ssa.infrastructure.database import models
+from ssa.infrastructure.database.errors import conflict_from_integrity_error
 from ssa.infrastructure.database.mappers.tracking import (
     new_study_session_model,
     update_study_session_model,
@@ -36,7 +38,10 @@ class SqlAlchemyStudySessionRepository:
     async def add(self, session: StudySession) -> None:
         model = new_study_session_model(session)
         self._session.add(model)
-        await self._session.flush()
+        try:
+            await self._session.flush()
+        except IntegrityError as err:
+            raise conflict_from_integrity_error(err) from err
         session.id = model.id
 
     async def get_by_id(self, session_id: int) -> StudySession:

@@ -21,9 +21,15 @@ from ssa.application.common.di import ApplicationProvider
 from ssa.application.identity.dto import OnboardUserRequest, RegisterUserRequest
 from ssa.application.identity.use_cases.onboard_user import OnboardUser
 from ssa.application.identity.use_cases.register_user import RegisterUser
-from ssa.application.tracking.dto import CreateSubjectRequest
+from ssa.application.tracking.dto import (
+    CompleteStudySessionRequest,
+    CreateSubjectRequest,
+    StartStudySessionRequest,
+)
+from ssa.application.tracking.use_cases.complete_study_session import CompleteStudySession
 from ssa.application.tracking.use_cases.create_subject import CreateSubject
-from ssa.domain.common.errors import NotFoundError
+from ssa.application.tracking.use_cases.start_study_session import StartStudySession
+from ssa.domain.common.errors import ConflictError, NotFoundError
 from ssa.infrastructure.di import InfrastructureProvider
 
 if TYPE_CHECKING:
@@ -120,3 +126,118 @@ async def test_onboard_user_recognises_a_returning_telegram_user(
     assert second.is_new_user is False
     assert second.user_id == first.user_id
     assert second.public_id == first.public_id
+
+
+async def test_start_and_complete_a_study_session(
+    container: AsyncContainer,
+) -> None:
+    async with container() as request_scope:
+        register_user = await request_scope.get(RegisterUser)
+        user = await register_user.execute(RegisterUserRequest(timezone="UTC"))
+
+    async with container() as request_scope:
+        start_study_session = await request_scope.get(StartStudySession)
+        started = await start_study_session.execute(StartStudySessionRequest(user_id=user.user_id))
+
+    assert started.session_id is not None
+
+    async with container() as request_scope:
+        complete_study_session = await request_scope.get(CompleteStudySession)
+        completed = await complete_study_session.execute(
+            CompleteStudySessionRequest(user_id=user.user_id, focus_score=4)
+        )
+
+    assert completed.session_id == started.session_id
+    assert completed.focus_score == 4
+    assert completed.duration_minutes >= 0
+
+
+async def test_start_study_session_rejects_a_second_concurrent_session(
+    container: AsyncContainer,
+) -> None:
+    async with container() as request_scope:
+        register_user = await request_scope.get(RegisterUser)
+        user = await register_user.execute(RegisterUserRequest(timezone="UTC"))
+
+    async with container() as request_scope:
+        start_study_session = await request_scope.get(StartStudySession)
+        await start_study_session.execute(StartStudySessionRequest(user_id=user.user_id))
+
+    async with container() as request_scope:
+        start_study_session = await request_scope.get(StartStudySession)
+        with pytest.raises(ConflictError):
+            await start_study_session.execute(StartStudySessionRequest(user_id=user.user_id))
+
+
+async def test_complete_study_session_without_an_active_session_raises_not_found(
+    container: AsyncContainer,
+) -> None:
+    async with container() as request_scope:
+        register_user = await request_scope.get(RegisterUser)
+        user = await register_user.execute(RegisterUserRequest(timezone="UTC"))
+
+    async with container() as request_scope:
+        complete_study_session = await request_scope.get(CompleteStudySession)
+        with pytest.raises(NotFoundError):
+            await complete_study_session.execute(CompleteStudySessionRequest(user_id=user.user_id))
+
+
+async def test_start_study_session_with_a_valid_subject_attaches_it(
+    container: AsyncContainer,
+) -> None:
+    async with container() as request_scope:
+        register_user = await request_scope.get(RegisterUser)
+        user = await register_user.execute(RegisterUserRequest(timezone="UTC"))
+
+    async with container() as request_scope:
+        create_subject = await request_scope.get(CreateSubject)
+        subject = await create_subject.execute(
+            CreateSubjectRequest(user_id=user.user_id, name="Math")
+        )
+
+    async with container() as request_scope:
+        start_study_session = await request_scope.get(StartStudySession)
+        # Matching is case-insensitive (mirrors `uq_subjects_user_name`).
+        started = await start_study_session.execute(
+            StartStudySessionRequest(user_id=user.user_id, subject_name="math")
+        )
+
+    assert started.subject_id == subject.subject_id
+
+
+async def test_start_study_session_with_an_unknown_subject_raises_not_found(
+    container: AsyncContainer,
+) -> None:
+    async with container() as request_scope:
+        register_user = await request_scope.get(RegisterUser)
+        user = await register_user.execute(RegisterUserRequest(timezone="UTC"))
+
+    async with container() as request_scope:
+        start_study_session = await request_scope.get(StartStudySession)
+        with pytest.raises(NotFoundError):
+            await start_study_session.execute(
+                StartStudySessionRequest(user_id=user.user_id, subject_name="Physics")
+            )
+
+
+async def test_start_study_session_cannot_use_another_users_subject(
+    container: AsyncContainer,
+) -> None:
+    async with container() as request_scope:
+        register_user = await request_scope.get(RegisterUser)
+        owner = await register_user.execute(RegisterUserRequest(timezone="UTC"))
+
+    async with container() as request_scope:
+        register_user = await request_scope.get(RegisterUser)
+        other = await register_user.execute(RegisterUserRequest(timezone="UTC"))
+
+    async with container() as request_scope:
+        create_subject = await request_scope.get(CreateSubject)
+        await create_subject.execute(CreateSubjectRequest(user_id=owner.user_id, name="Math"))
+
+    async with container() as request_scope:
+        start_study_session = await request_scope.get(StartStudySession)
+        with pytest.raises(NotFoundError):
+            await start_study_session.execute(
+                StartStudySessionRequest(user_id=other.user_id, subject_name="Math")
+            )

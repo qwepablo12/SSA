@@ -45,6 +45,13 @@ class SubjectRepository(Protocol):
         pattern (06 §5, ``ix_subjects_user_active``)."""
         ...
 
+    async def find_by_name_for_user(self, user_id: int, name: str) -> Subject | None:
+        """Case-insensitive lookup scoped to the owning user and to
+        non-archived subjects (``uq_subjects_user_name``) — resolves the free
+        text typed into ``/study <subject>``, so a name never leaks whether it
+        belongs to someone else."""
+        ...
+
     async def update(self, subject: Subject) -> None: ...
 
 

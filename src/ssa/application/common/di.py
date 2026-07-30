@@ -17,14 +17,16 @@ from ssa.application.identity.use_cases.link_telegram_account import LinkTelegra
 from ssa.application.identity.use_cases.onboard_user import OnboardUser
 from ssa.application.identity.use_cases.register_user import RegisterUser
 from ssa.application.identity.use_cases.update_privacy_settings import UpdatePrivacySettings
+from ssa.application.tracking.use_cases.complete_study_session import CompleteStudySession
 from ssa.application.tracking.use_cases.create_subject import CreateSubject
+from ssa.application.tracking.use_cases.start_study_session import StartStudySession
 from ssa.domain.common.protocols import Clock, UnitOfWork
 from ssa.domain.identity.repositories import (
     PrivacySettingsRepository,
     TelegramAccountRepository,
     UserRepository,
 )
-from ssa.domain.tracking.repositories import SubjectRepository
+from ssa.domain.tracking.repositories import StudySessionRepository, SubjectRepository
 
 __all__ = ["ApplicationProvider"]
 
@@ -93,3 +95,29 @@ class ApplicationProvider(Provider):
         uow: UnitOfWork,
     ) -> CreateSubject:
         return CreateSubject(users=users, subjects=subjects, clock=clock, uow=uow)
+
+    @provide(scope=Scope.REQUEST)
+    def get_start_study_session(
+        self,
+        users: UserRepository,
+        study_sessions: StudySessionRepository,
+        subjects: SubjectRepository,
+        clock: Clock,
+        uow: UnitOfWork,
+    ) -> StartStudySession:
+        return StartStudySession(
+            users=users,
+            study_sessions=study_sessions,
+            subjects=subjects,
+            clock=clock,
+            uow=uow,
+        )
+
+    @provide(scope=Scope.REQUEST)
+    def get_complete_study_session(
+        self,
+        study_sessions: StudySessionRepository,
+        clock: Clock,
+        uow: UnitOfWork,
+    ) -> CompleteStudySession:
+        return CompleteStudySession(study_sessions=study_sessions, clock=clock, uow=uow)
