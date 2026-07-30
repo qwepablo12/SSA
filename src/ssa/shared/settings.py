@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
-__all__ = ["DatabaseSettings", "Environment", "Settings"]
+__all__ = ["BotSettings", "DatabaseSettings", "Environment", "Settings"]
 
 
 class Environment(StrEnum):
@@ -74,6 +74,12 @@ class DatabaseSettings(BaseModel):
         return f"postgresql://{self.user}@{self.host}:{self.port}/{self.name}"
 
 
+class BotSettings(BaseModel):
+    """Telegram Bot API credentials, used only by ``apps.bot``."""
+
+    token: SecretStr
+
+
 class Settings(BaseSettings):
     """Root configuration object.
 
@@ -95,6 +101,7 @@ class Settings(BaseSettings):
 
     db: DatabaseSettings = Field(default_factory=DatabaseSettings)
     test_db: DatabaseSettings | None = None
+    bot: BotSettings | None = None
 
     @model_validator(mode="after")
     def _reject_unknown_env_vars(self) -> Settings:
