@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from ssa.domain.common.errors import NotFoundError
@@ -57,6 +57,15 @@ class SqlAlchemySubjectRepository:
         stmt = stmt.order_by(models.Subject.name)
         result = await self._session.scalars(stmt)
         return [_to_domain(model) for model in result]
+
+    async def find_by_name_for_user(self, user_id: int, name: str) -> Subject | None:
+        stmt = select(models.Subject).where(
+            models.Subject.user_id == user_id,
+            func.lower(models.Subject.name) == name.strip().lower(),
+            ~models.Subject.is_archived,
+        )
+        model = await self._session.scalar(stmt)
+        return _to_domain(model) if model is not None else None
 
     async def update(self, subject: Subject) -> None:
         model = await self._session.get(models.Subject, subject.id)
