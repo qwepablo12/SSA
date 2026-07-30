@@ -64,7 +64,13 @@ class SqlAlchemyStudySessionRepository:
         return _to_domain(model) if model is not None else None
 
     async def list_for_user(
-        self, user_id: int, *, since: date | None = None, until: date | None = None
+        self,
+        user_id: int,
+        *,
+        since: date | None = None,
+        until: date | None = None,
+        status: SessionStatus | None = None,
+        limit: int | None = None,
     ) -> list[StudySession]:
         stmt = select(models.StudySession).where(
             models.StudySession.user_id == user_id,
@@ -74,7 +80,11 @@ class SqlAlchemyStudySessionRepository:
             stmt = stmt.where(models.StudySession.local_date >= since)
         if until is not None:
             stmt = stmt.where(models.StudySession.local_date <= until)
+        if status is not None:
+            stmt = stmt.where(models.StudySession.status == status.value)
         stmt = stmt.order_by(models.StudySession.started_at.desc())
+        if limit is not None:
+            stmt = stmt.limit(limit)
         result = await self._session.scalars(stmt)
         return [_to_domain(model) for model in result]
 
