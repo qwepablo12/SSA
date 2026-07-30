@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from aiogram import Router
 
+from ssa.apps.bot.handlers.history import router as history_router
 from ssa.apps.bot.handlers.start import router as start_router
 from ssa.apps.bot.handlers.study import router as study_router
 from ssa.apps.bot.handlers.subject import router as subject_router
@@ -18,3 +19,4 @@ router = Router(name="root")
 router.include_router(start_router)
 router.include_router(subject_router)
 router.include_router(study_router)
+router.include_router(history_router)

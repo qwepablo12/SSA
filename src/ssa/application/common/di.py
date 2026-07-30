@@ -19,6 +19,7 @@ from ssa.application.identity.use_cases.register_user import RegisterUser
 from ssa.application.identity.use_cases.update_privacy_settings import UpdatePrivacySettings
 from ssa.application.tracking.use_cases.complete_study_session import CompleteStudySession
 from ssa.application.tracking.use_cases.create_subject import CreateSubject
+from ssa.application.tracking.use_cases.get_study_history import GetStudyHistory
 from ssa.application.tracking.use_cases.start_study_session import StartStudySession
 from ssa.domain.common.protocols import Clock, UnitOfWork
 from ssa.domain.identity.repositories import (
@@ -121,3 +122,12 @@ class ApplicationProvider(Provider):
         uow: UnitOfWork,
     ) -> CompleteStudySession:
         return CompleteStudySession(study_sessions=study_sessions, clock=clock, uow=uow)
+
+    @provide(scope=Scope.REQUEST)
+    def provide_get_study_history(
+        self,
+        users: UserRepository,
+        study_sessions: StudySessionRepository,
+        subjects: SubjectRepository,
+    ) -> GetStudyHistory:
+        return GetStudyHistory(users=users, study_sessions=study_sessions, subjects=subjects)
