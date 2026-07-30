@@ -24,10 +24,12 @@ from ssa.application.identity.use_cases.register_user import RegisterUser
 from ssa.application.tracking.dto import (
     CompleteStudySessionRequest,
     CreateSubjectRequest,
+    GetStudyHistoryRequest,
     StartStudySessionRequest,
 )
 from ssa.application.tracking.use_cases.complete_study_session import CompleteStudySession
 from ssa.application.tracking.use_cases.create_subject import CreateSubject
+from ssa.application.tracking.use_cases.get_study_history import GetStudyHistory
 from ssa.application.tracking.use_cases.start_study_session import StartStudySession
 from ssa.domain.common.errors import ConflictError, NotFoundError
 from ssa.infrastructure.di import InfrastructureProvider
@@ -241,3 +243,125 @@ async def test_start_study_session_cannot_use_another_users_subject(
             await start_study_session.execute(
                 StartStudySessionRequest(user_id=other.user_id, subject_name="Math")
             )
+
+
+async def test_get_study_history_is_empty_for_a_user_with_no_sessions(
+    container: AsyncContainer,
+) -> None:
+    async with container() as request_scope:
+        register_user = await request_scope.get(RegisterUser)
+        user = await register_user.execute(RegisterUserRequest(timezone="UTC"))
+
+    async with container() as request_scope:
+        get_study_history = await request_scope.get(GetStudyHistory)
+        result = await get_study_history.execute(GetStudyHistoryRequest(user_id=user.user_id))
+
+    assert result.entries == []
+
+
+async def test_get_study_history_orders_completed_sessions_newest_first(
+    container: AsyncContainer,
+) -> None:
+    async with container() as request_scope:
+        register_user = await request_scope.get(RegisterUser)
+        user = await register_user.execute(RegisterUserRequest(timezone="UTC"))
+
+    async with container() as request_scope:
+        start_study_session = await request_scope.get(StartStudySession)
+        complete_study_session = await request_scope.get(CompleteStudySession)
+        first = await start_study_session.execute(StartStudySessionRequest(user_id=user.user_id))
+        first_completed = await complete_study_session.execute(
+            CompleteStudySessionRequest(user_id=user.user_id)
+        )
+
+    async with container() as request_scope:
+        start_study_session = await request_scope.get(StartStudySession)
+        complete_study_session = await request_scope.get(CompleteStudySession)
+        second = await start_study_session.execute(StartStudySessionRequest(user_id=user.user_id))
+        second_completed = await complete_study_session.execute(
+            CompleteStudySessionRequest(user_id=user.user_id)
+        )
+
+    async with container() as request_scope:
+        get_study_history = await request_scope.get(GetStudyHistory)
+        result = await get_study_history.execute(GetStudyHistoryRequest(user_id=user.user_id))
+
+    assert [entry.session_id for entry in result.entries] == [second.session_id, first.session_id]
+    assert result.entries[0].ended_at == second_completed.ended_at
+    assert result.entries[1].ended_at == first_completed.ended_at
+
+
+async def test_get_study_history_entry_without_a_subject_has_no_subject_name(
+    container: AsyncContainer,
+) -> None:
+    async with container() as request_scope:
+        register_user = await request_scope.get(RegisterUser)
+        user = await register_user.execute(RegisterUserRequest(timezone="UTC"))
+
+    async with container() as request_scope:
+        start_study_session = await request_scope.get(StartStudySession)
+        complete_study_session = await request_scope.get(CompleteStudySession)
+        await start_study_session.execute(StartStudySessionRequest(user_id=user.user_id))
+        await complete_study_session.execute(CompleteStudySessionRequest(user_id=user.user_id))
+
+    async with container() as request_scope:
+        get_study_history = await request_scope.get(GetStudyHistory)
+        result = await get_study_history.execute(GetStudyHistoryRequest(user_id=user.user_id))
+
+    assert len(result.entries) == 1
+    assert result.entries[0].subject_id is None
+    assert result.entries[0].subject_name is None
+
+
+async def test_get_study_history_entry_with_a_subject_includes_its_name(
+    container: AsyncContainer,
+) -> None:
+    async with container() as request_scope:
+        register_user = await request_scope.get(RegisterUser)
+        user = await register_user.execute(RegisterUserRequest(timezone="UTC"))
+
+    async with container() as request_scope:
+        create_subject = await request_scope.get(CreateSubject)
+        subject = await create_subject.execute(
+            CreateSubjectRequest(user_id=user.user_id, name="Math")
+        )
+
+    async with container() as request_scope:
+        start_study_session = await request_scope.get(StartStudySession)
+        complete_study_session = await request_scope.get(CompleteStudySession)
+        await start_study_session.execute(
+            StartStudySessionRequest(user_id=user.user_id, subject_name="Math")
+        )
+        await complete_study_session.execute(CompleteStudySessionRequest(user_id=user.user_id))
+
+    async with container() as request_scope:
+        get_study_history = await request_scope.get(GetStudyHistory)
+        result = await get_study_history.execute(GetStudyHistoryRequest(user_id=user.user_id))
+
+    assert len(result.entries) == 1
+    assert result.entries[0].subject_id == subject.subject_id
+    assert result.entries[0].subject_name == "Math"
+
+
+async def test_get_study_history_only_returns_the_requesting_users_sessions(
+    container: AsyncContainer,
+) -> None:
+    async with container() as request_scope:
+        register_user = await request_scope.get(RegisterUser)
+        user_a = await register_user.execute(RegisterUserRequest(timezone="UTC"))
+
+    async with container() as request_scope:
+        register_user = await request_scope.get(RegisterUser)
+        user_b = await register_user.execute(RegisterUserRequest(timezone="UTC"))
+
+    async with container() as request_scope:
+        start_study_session = await request_scope.get(StartStudySession)
+        complete_study_session = await request_scope.get(CompleteStudySession)
+        await start_study_session.execute(StartStudySessionRequest(user_id=user_b.user_id))
+        await complete_study_session.execute(CompleteStudySessionRequest(user_id=user_b.user_id))
+
+    async with container() as request_scope:
+        get_study_history = await request_scope.get(GetStudyHistory)
+        result = await get_study_history.execute(GetStudyHistoryRequest(user_id=user_a.user_id))
+
+    assert result.entries == []

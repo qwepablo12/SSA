@@ -21,6 +21,7 @@ if TYPE_CHECKING:
         StudySession,
         Subject,
     )
+    from ssa.domain.tracking.enums import SessionStatus
 
 __all__ = [
     "ExerciseLogRepository",
@@ -71,10 +72,19 @@ class StudySessionRepository(Protocol):
         ...
 
     async def list_for_user(
-        self, user_id: int, *, since: date | None = None, until: date | None = None
+        self,
+        user_id: int,
+        *,
+        since: date | None = None,
+        until: date | None = None,
+        status: SessionStatus | None = None,
+        limit: int | None = None,
     ) -> list[StudySession]:
         """Most recent first — the dominant read pattern (06 §6,
-        ``ix_study_sessions_user_started``)."""
+        ``ix_study_sessions_user_started``). ``status``/``limit`` default to
+        no filter, which is what the overlap check
+        (``application/tracking/use_cases/complete_study_session.py``) needs;
+        ``/history`` passes ``status=COMPLETED`` and a row cap."""
         ...
 
     async def update(self, session: StudySession) -> None: ...
