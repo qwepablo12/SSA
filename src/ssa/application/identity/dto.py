@@ -15,6 +15,8 @@ from ssa.domain.identity.enums import UserStatus, Visibility
 __all__ = [
     "LinkTelegramAccountRequest",
     "LinkTelegramAccountResult",
+    "OnboardUserRequest",
+    "OnboardUserResult",
     "RegisterUserRequest",
     "RegisterUserResult",
     "UpdatePrivacySettingsRequest",
@@ -46,6 +48,25 @@ class LinkTelegramAccountResult(BaseModel):
     user_id: int
     telegram_id: int
     linked_at: datetime
+
+
+class OnboardUserRequest(BaseModel):
+    """What the bot's ``/start`` handler actually has on hand — no
+    ``timezone``: Telegram's message payload never carries one, so
+    ``OnboardUser`` supplies a default until a later step lets the user set
+    a real one."""
+
+    telegram_id: int
+    chat_id: int
+    telegram_username: str | None = None
+    language_code: str | None = None
+    display_name: str | None = None
+
+
+class OnboardUserResult(BaseModel):
+    user_id: int
+    public_id: uuid.UUID
+    is_new_user: bool
 
 
 class UpdatePrivacySettingsRequest(BaseModel):

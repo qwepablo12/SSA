@@ -41,8 +41,10 @@ class RegisterUser:
         self._clock = clock
         self._uow = uow
 
-    @transactional
-    async def execute(self, request: RegisterUserRequest) -> RegisterUserResult:
+    async def _execute(self, request: RegisterUserRequest) -> RegisterUserResult:
+        """The undecorated core, callable by a nested use case (e.g.
+        ``OnboardUser``) so it joins the caller's transaction instead of
+        committing on its own (01_Architecture.md §7.1)."""
         now = self._clock.now()
         user = User(
             public_id=uuid.uuid4(),
@@ -61,3 +63,7 @@ class RegisterUser:
         await self._privacy_settings.add(settings)
 
         return RegisterUserResult(user_id=user.id, public_id=user.public_id, status=user.status)
+
+    @transactional
+    async def execute(self, request: RegisterUserRequest) -> RegisterUserResult:
+        return await self._execute(request)

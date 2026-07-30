@@ -41,8 +41,10 @@ class LinkTelegramAccount:
         self._clock = clock
         self._uow = uow
 
-    @transactional
-    async def execute(self, request: LinkTelegramAccountRequest) -> LinkTelegramAccountResult:
+    async def _execute(self, request: LinkTelegramAccountRequest) -> LinkTelegramAccountResult:
+        """The undecorated core, callable by a nested use case (e.g.
+        ``OnboardUser``) so it joins the caller's transaction instead of
+        committing on its own (01_Architecture.md §7.1)."""
         user = await self._users.get_by_id(request.user_id)
         if user.id is None:  # pragma: no cover - defensive; get_by_id only returns persisted users
             raise RuntimeError("UserRepository.get_by_id returned a user with no id")
@@ -61,3 +63,7 @@ class LinkTelegramAccount:
         return LinkTelegramAccountResult(
             user_id=account.user_id, telegram_id=account.telegram_id, linked_at=linked_at
         )
+
+    @transactional
+    async def execute(self, request: LinkTelegramAccountRequest) -> LinkTelegramAccountResult:
+        return await self._execute(request)
